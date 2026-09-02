@@ -13,6 +13,15 @@
 # limitations under the License.
 
 tide:
+  batch_size_limit:
+    # Disable batch testing (-1) for kube-agents: the merge-blocking smoke
+    # presubmit runs 1.5-3.5h, so one failed batch stalls every merge behind a
+    # multi-hour retry loop (2026-09-02 incident: the pool backed up while the
+    # fix for the failing case sat inside it). Merges ride each PR's own green
+    # smoke instead. Merge-skew risk (two individually-green PRs interacting
+    # badly) is accepted, with the nightly full-catalog run as backstop.
+    # Revert this line if main starts breaking from merge skew.
+    gke-labs/kube-agents: -1
   merge_method:
     GoogleCloudPlatform/compute-image-tools: squash
     GoogleCloudPlatform/compute-image-windows: squash
