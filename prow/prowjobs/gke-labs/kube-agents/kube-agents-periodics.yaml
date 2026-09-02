@@ -1,0 +1,44 @@
+periodics:
+- name: ci-kube-agents-eval-dashboard-refresh
+  # Keeps the kube-agents eval dashboard fresh: reads eval logs from GCS,
+  # renders HTML, and writes two objects to the dashboard bucket. No Boskos
+  # lease, no cluster provisioning, no GPU -- this is a cheap read/render/write
+  # job, so hourly is affordable.
+  cluster: build-kube-agents
+  interval: 1h
+  max_concurrency: 1
+  decorate: true
+  decoration_config:
+    timeout: 30m
+    grace_period: 2m
+  annotations:
+    # No gke-labs dashboard exists in testgrid/config.yaml yet; skip TestGrid
+    # (same pattern as louhi-echo-test-periodic).
+    testgrid-create-test-group: "false"
+    description: Hourly refresh of the kube-agents eval dashboard from GCS eval logs.
+  extra_refs:
+  - org: gke-labs
+    repo: kube-agents
+    base_ref: main
+    workdir: true
+  spec:
+    # prowjob-default-sa holds roles/storage.objectAdmin on
+    # gs://kube-agents-dashboards. Migrating this job to a dedicated
+    # eval-dashboard-publisher GSA is a tracked hardening follow-up
+    # (see the publish-hook prerequisites in gke-labs/kube-agents#1043).
+    serviceAccountName: prowjob-default-sa
+    containers:
+    # Same image the pull-kube-agents-smoke-test presubmit uses; this job only
+    # needs its bash + gcloud/gsutil toolchain.
+    - image: gcr.io/k8s-staging-test-infra/kubekins-e2e:latest-1.32
+      command:
+      - ./hack/ci-dashboard-refresh.sh
+      env:
+      # The script is inert without this: it names the GCS prefix the rendered
+      # dashboard objects are written to.
+      - name: EVAL_DASHBOARD_TARGET
+        value: gs://kube-agents-dashboards/evals/
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
