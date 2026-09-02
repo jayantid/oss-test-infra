@@ -3,9 +3,12 @@ periodics:
   # Keeps the kube-agents eval dashboard fresh: reads eval logs from GCS,
   # renders HTML, and writes two objects to the dashboard bucket. No Boskos
   # lease, no cluster provisioning, no GPU -- this is a cheap read/render/write
-  # job, so hourly is affordable.
+  # job: incremental collection scans only the builds that finished since the
+  # last tick, so a 15m cadence costs seconds of GCS listing per run and keeps
+  # the dashboard close enough to real time for flake forensics during an
+  # incident. max_concurrency 1 makes a slow tick skip, not stack.
   cluster: build-kube-agents
-  interval: 1h
+  interval: 15m
   max_concurrency: 1
   decorate: true
   decoration_config:
@@ -15,7 +18,7 @@ periodics:
     # No gke-labs dashboard exists in testgrid/config.yaml yet; skip TestGrid
     # (same pattern as louhi-echo-test-periodic).
     testgrid-create-test-group: "false"
-    description: Hourly refresh of the kube-agents eval dashboard from GCS eval logs.
+    description: 15-minute refresh of the kube-agents eval dashboard from GCS eval logs.
   extra_refs:
   - org: gke-labs
     repo: kube-agents
