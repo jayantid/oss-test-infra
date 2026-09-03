@@ -13,6 +13,26 @@
 # limitations under the License.
 
 tide:
+  batch_size_limit:
+    # Cap kube-agents tide batches at PAIRS. The repo's merge-blocking smoke
+    # presubmit runs 1.5-3.5h, and a batch is discarded whenever any member
+    # drops out of the pool mid-flight -- observed 2026-09-03: a PASSING
+    # two-PR batch was thrown away because one member's individual retest
+    # flaked while the batch ran (GoogleCloudPlatform/oss-test-infra#2687).
+    # Batch survival is the product of member stability over a multi-hour
+    # window, so wide batches almost never land; pairs keep the 2x
+    # amortization while bounding one member's flake to one wasted partner.
+    # Upstream semantics (kubernetes-sigs/prow pkg/config/tide.go):
+    # 0 => unlimited (the default), -1 => disabled. Raise to 3 if the
+    # per-run green rate stays >95%; revisit if tide grows green-batch
+    # salvage (#2687).
+    gke-labs/kube-agents: 2
+  prioritize_existing_batches:
+    # Already the upstream default (true); pinned here so the repo's
+    # batching posture is explicit next to the size cap: finish an
+    # in-flight batch and reuse its results rather than restarting when
+    # new PRs become eligible -- restarts cost a full 1.5-3.5h run.
+    gke-labs/kube-agents: true
   merge_method:
     GoogleCloudPlatform/compute-image-tools: squash
     GoogleCloudPlatform/compute-image-windows: squash
